@@ -27,9 +27,26 @@
 <body>
   <iframe id="app" allow="geolocation; camera"></iframe>
   <script>
-    // 把分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
     var GAS_URL = "https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec";
-    document.getElementById("app").src = GAS_URL + (location.search || "");
+    var REFRESH_AFTER_MS = 10 * 60 * 1000; // 離開超過 10 分鐘，回來時自動載入最新版（短暫切換不會重新整理）
+    var frame = document.getElementById("app");
+
+    // 1. 分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
+    frame.src = GAS_URL + (location.search || "");
+    // 參數只用一次：從網址列移除，避免之後重新整理又跳回同一筆
+    if (location.search && window.history && history.replaceState) history.replaceState(null, "", location.pathname);
+
+    // 2. 放到手機桌面當 App 時，回到前景若已離開太久，自動載入最新版（登入狀態會保留）
+    var hiddenAt = 0;
+    function markHidden() { if (!hiddenAt) hiddenAt = Date.now(); }
+    function checkReturn() {
+      if (document.hidden) return;
+      if (hiddenAt && Date.now() - hiddenAt >= REFRESH_AFTER_MS) frame.src = GAS_URL + "?_r=" + Date.now();
+      hiddenAt = 0;
+    }
+    document.addEventListener("visibilitychange", function () { if (document.hidden) markHidden(); else checkReturn(); });
+    window.addEventListener("pagehide", markHidden);
+    window.addEventListener("pageshow", function (e) { if (e.persisted) checkReturn(); });
   </script>
 </body>
 </html>
