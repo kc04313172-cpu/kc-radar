@@ -47,6 +47,35 @@
     document.addEventListener("visibilitychange", function () { if (document.hidden) markHidden(); else checkReturn(); });
     window.addEventListener("pagehide", markHidden);
     window.addEventListener("pageshow", function (e) { if (e.persisted) checkReturn(); });
+
+    // 3. 記住登入：系統畫面在 Google 沙盒網域，手機容易清掉它的資料；
+    //    改由本頁（固定網域）代為保存工號、保持登入與記住的密碼憑證。
+    var STORE_PREFIX = "kcapp:";
+    var ALLOWED_KEYS = { kc_v3_emp: 1, kc_v3_token: 1, kc_v3_pw: 1, kc_logged_user: 1 };
+    function fromOurApp(src) { // 只回應嵌在本頁 iframe 裡的系統畫面
+      try {
+        var w = frame.contentWindow;
+        if (!w || !src) return false;
+        if (src === w) return true;
+        for (var i = 0; i < w.frames.length; i++) if (w.frames[i] === src) return true;
+      } catch (err) {}
+      return false;
+    }
+    window.addEventListener("message", function (e) {
+      if (!/^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(e.origin) || !fromOurApp(e.source)) return;
+      var d = e.data || {};
+      try {
+        if (d.kc === "getStore") {
+          var data = {};
+          for (var k in ALLOWED_KEYS) { var v = localStorage.getItem(STORE_PREFIX + k); if (v !== null) data[k] = v; }
+          e.source.postMessage({ kc: "store", data: data }, e.origin);
+        } else if (d.kc === "setStore" && ALLOWED_KEYS[d.key]) {
+          localStorage.setItem(STORE_PREFIX + d.key, String(d.value));
+        } else if (d.kc === "removeStore" && ALLOWED_KEYS[d.key]) {
+          localStorage.removeItem(STORE_PREFIX + d.key);
+        }
+      } catch (err) {}
+    });
   </script>
 </body>
 </html>
