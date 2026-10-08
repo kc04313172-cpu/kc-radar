@@ -25,6 +25,11 @@
   </style>
 </head>
 <body>
-  <iframe src="https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec" allow="geolocation; camera"></iframe>
+  <iframe id="app" allow="geolocation; camera"></iframe>
+  <script>
+    // 把分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec";
+    document.getElementById("app").src = GAS_URL + (location.search || "");
+  </script>
 </body>
 </html>
