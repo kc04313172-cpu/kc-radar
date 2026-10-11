@@ -5,6 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>KC Nexus 營運協作中樞</title>
+  <!-- LINE／FB 分享預覽卡片：標題與圖片（圖片檔名含日期，換圖時改新檔名，LINE 才會抓新圖） -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="KC Nexus">
+  <meta property="og:title" content="KC Nexus 營運協作中樞">
+  <meta property="og:description" content="光泉內部營運協作系統">
+  <meta property="og:image" content="https://kc04313172-cpu.github.io/kc-radar/kcnexus-share-20261010.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="KC Nexus">
@@ -57,11 +65,19 @@
     var STORE_PREFIX = "kcapp:";
     var ALLOWED_KEYS = { kc_v3_emp: 1, kc_v3_token: 1, kc_v3_pw: 1, kc_logged_user: 1 };
     function fromOurApp(src) { // 只回應嵌在本頁 iframe 裡的系統畫面
+      // GAS 畫面包了多層（script.google.com → Google 沙盒頁 → 系統畫面），所以往下找到第 3 層
       try {
         var w = frame.contentWindow;
         if (!w || !src) return false;
-        if (src === w) return true;
-        for (var i = 0; i < w.frames.length; i++) if (w.frames[i] === src) return true;
+        var level = [w];
+        for (var depth = 0; depth <= 3 && level.length; depth++) {
+          var next = [];
+          for (var i = 0; i < level.length; i++) {
+            if (level[i] === src) return true;
+            for (var j = 0; j < level[i].frames.length; j++) next.push(level[i].frames[j]);
+          }
+          level = next;
+        }
       } catch (err) {}
       return false;
     }
