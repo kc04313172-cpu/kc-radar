@@ -37,18 +37,19 @@
   <main id="list"></main>
   <footer>點照片可看大圖；完整通報請回 LINE 點登入連結查看</footer>
   <script>
-    // 網址格式：photos.html?t=標題&p=照片代碼1.照片代碼2...
+    // 網址格式：photos.html?k=任務代碼&r=紀錄識別碼 → 打開時向系統查這一筆的照片清單（免登入，只拿到照片代碼）
+    // 舊格式 photos.html?t=標題&p=照片代碼1.照片代碼2... 仍可使用（之前已分享出去的連結不會壞）
     // 只接受 Google 雲端檔案代碼（英數、-、_），最多 20 張；全程用 textContent，不用 innerHTML
-    (function () {
-      var q = new URLSearchParams(location.search);
-      var title = String(q.get('t') || '').slice(0, 80);
-      var ids = String(q.get('p') || '').split('.').filter(function (s) { return /^[\w-]{20,80}$/.test(s); }).slice(0, 20);
-      var list = document.getElementById('list');
-      document.getElementById('sub').textContent = (title ? title + '　' : '') + '共 ' + ids.length + ' 張';
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec"; // 與 index.html 相同
+    var list = document.getElementById('list'), sub = document.getElementById('sub');
+    function cleanIds(arr) { return (arr || []).map(String).filter(function (s) { return /^[\w-]{20,80}$/.test(s); }).slice(0, 20); }
+    function showMsg(text) { var e = document.createElement('div'); e.className = 'empty'; e.textContent = text; list.replaceChildren(e); }
+    function render(title, ids) {
+      title = String(title || '').slice(0, 80);
+      sub.textContent = (title ? title + '　' : '') + '共 ' + ids.length + ' 張';
       if (title) document.title = '現場照片｜' + title;
-      if (!ids.length) {
-        var e = document.createElement('div'); e.className = 'empty'; e.textContent = '這個連結沒有照片。'; list.append(e); return;
-      }
+      if (!ids.length) { showMsg('這個連結沒有照片。'); return; }
+      list.replaceChildren();
       ids.forEach(function (id, i) {
         var base = 'https://lh3.googleusercontent.com/d/' + id;
         var fig = document.createElement('figure');
@@ -66,6 +67,20 @@
         fig.append(box, cap);
         list.append(fig);
       });
+    }
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var k = String(q.get('k') || '').slice(0, 50), r = String(q.get('r') || '').slice(0, 200);
+      if (k && r) {
+        sub.textContent = '照片載入中…';
+        showMsg('照片載入中，請稍候…');
+        fetch(GAS_URL + '?photos=1&k=' + encodeURIComponent(k) + '&r=' + encodeURIComponent(r))
+          .then(function (res) { return res.json(); })
+          .then(function (d) { render(d && d.title, cleanIds(d && d.photos)); })
+          .catch(function () { sub.textContent = ''; showMsg('照片讀取失敗，請稍後再試，或回 LINE 點登入連結查看。'); });
+        return;
+      }
+      render(q.get('t'), cleanIds(String(q.get('p') || '').split('.')));
     })();
   </script>
 </body>
