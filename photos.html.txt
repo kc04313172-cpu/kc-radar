@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>現場照片</title>
+  <!-- LINE 分享預覽卡片：此頁固定顯示「現場照片」，不顯示每筆的照片 -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="現場照片">
+  <meta property="og:description" content="點開即可查看本筆通報的現場照片">
+  <meta property="og:image" content="https://kc04313172-cpu.github.io/kc-radar/kcnexus-share-20261010.png">
+  <meta name="theme-color" content="#f6f3ee">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root { --bg:#f6f3ee; --card:#fff; --line:#e3dbd0; --ink:#3a3e42; --muted:#807c76; --accent:#94603a; --ph:#ece7e0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; }
+    header { position: sticky; top: 0; z-index: 2; background: rgba(246,243,238,.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding: 12px 16px; }
+    header .in { max-width: 880px; margin: auto; }
+    h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-all; }
+    main { max-width: 880px; margin: auto; padding: 16px 16px 40px; display: grid; gap: 16px; }
+    @media (min-width: 760px) { main { grid-template-columns: 1fr 1fr; } }
+    figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+    .box { background: var(--ph); border-radius: 8px; min-height: 180px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .box img { display: block; width: 100%; height: auto; }
+    .box .msg { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+    figcaption { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); padding: 8px 2px 0; }
+    figcaption a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 60px 20px; border: 1px dashed var(--line); border-radius: 12px; background: var(--card); }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 16px 28px; }
+  </style>
+</head>
+<body>
+  <header><div class="in"><h1>現場照片</h1><div class="sub" id="sub"></div></div></header>
+  <main id="list"></main>
+  <footer>點照片可看大圖；完整通報請回 LINE 點登入連結查看</footer>
+  <script>
+    // 網址格式：photos.html?t=標題&p=照片代碼1.照片代碼2...
+    // 只接受 Google 雲端檔案代碼（英數、-、_），最多 20 張；全程用 textContent，不用 innerHTML
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var title = String(q.get('t') || '').slice(0, 80);
+      var ids = String(q.get('p') || '').split('.').filter(function (s) { return /^[\w-]{20,80}$/.test(s); }).slice(0, 20);
+      var list = document.getElementById('list');
+      document.getElementById('sub').textContent = (title ? title + '　' : '') + '共 ' + ids.length + ' 張';
+      if (title) document.title = '現場照片｜' + title;
+      if (!ids.length) {
+        var e = document.createElement('div'); e.className = 'empty'; e.textContent = '這個連結沒有照片。'; list.append(e); return;
+      }
+      ids.forEach(function (id, i) {
+        var base = 'https://lh3.googleusercontent.com/d/' + id;
+        var fig = document.createElement('figure');
+        var box = document.createElement('div'); box.className = 'box';
+        var img = document.createElement('img');
+        img.alt = '照片 ' + (i + 1); img.loading = i < 2 ? 'eager' : 'lazy'; img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+        img.src = base + '=w1000';
+        img.onerror = function () { var m = document.createElement('div'); m.className = 'msg'; m.textContent = '照片無法讀取，可能已刪除或權限變更'; box.replaceChildren(m); };
+        box.append(img);
+        var cap = document.createElement('figcaption');
+        var n = document.createElement('span'); n.textContent = (i + 1) + ' / ' + ids.length;
+        var a = document.createElement('a'); a.href = base + '=w2000'; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '看大圖';
+        cap.append(n, a);
+        fig.append(box, cap);
+        list.append(fig);
+      });
+    })();
+  </script>
+</body>
+</html>
