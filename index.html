@@ -19,6 +19,8 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" href="favicon.png">
+  <!-- 【APP化】Android 安裝成 APP 用（名稱、圖示、開機底色）；iPhone 仍用上面的 apple-touch-icon -->
+  <link rel="manifest" href="manifest.json">
   <style>
     html, body {
       margin: 0;
@@ -34,17 +36,59 @@
       border: none;
       display: block;
     }
+    /* 【APP化】手機瀏覽器網址列伸縮時，高度跟著實際可見範圍（舊手機自動沿用上面的 100%） */
+    @supports (height: 100dvh) { html, body { height: 100dvh; } }
+    /* 【APP化】開機畫面：系統載入好之前蓋在最上層；太久或沒網路時顯示「重新載入」 */
+    #kcSplash { position: fixed; inset: 0; z-index: 5; background: #faf6ef; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; transition: opacity .35s; }
+    #kcSplash.done { opacity: 0; pointer-events: none; }
+    #kcSplash img { width: 140px; height: 140px; }
+    #kcSplash .t { font-size: 17px; font-weight: 700; color: #2a2d30; letter-spacing: .5px; }
+    #kcSplash .bar { width: 120px; height: 3px; border-radius: 3px; background: #e8dfcf; overflow: hidden; margin-top: 6px; }
+    #kcSplash .bar i { display: block; width: 40%; height: 100%; border-radius: 3px; background: #c4aa7c; animation: kcLoad 1.2s ease-in-out infinite; }
+    @keyframes kcLoad { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    #kcSplash .m { font-size: 13px; color: #8c8f94; min-height: 20px; line-height: 1.6; }
+    #kcSplash.slow .m { color: #96603b; }
+    #kcSplash button { display: none; margin-top: 4px; border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 11px 28px; min-height: 44px; cursor: pointer; }
+    #kcSplash.slow button { display: inline-block; }
   </style>
 </head>
 <body>
   <iframe id="app" allow="geolocation; camera"></iframe>
+  <div id="kcSplash" role="status"><img src="icon-512.png" alt=""><div class="t">KC Nexus 營運協作中樞</div><div class="bar"><i></i></div><div class="m">系統載入中…</div><button type="button" id="kcReload">重新載入</button></div>
   <script>
     var GAS_URL = "https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec";
     var REFRESH_AFTER_MS = 10 * 60 * 1000; // 離開超過 10 分鐘，回來時自動載入最新版（短暫切換不會重新整理）
     var frame = document.getElementById("app");
 
+    // 0. 【APP化】開機畫面：系統一有回應（或整頁載完）就淡出；15 秒還沒好、或沒有網路時，顯示「重新載入」
+    var SLOW_AFTER_MS = 15 * 1000;
+    var splash = document.getElementById("kcSplash");
+    var splashMsg = splash.querySelector(".m");
+    var slowTimer = 0;
+    function splashText(slow, text) { splash.classList.toggle("slow", slow); splashMsg.innerHTML = text; }
+    function showSplash() {
+      splash.classList.remove("done");
+      splashText(false, "系統載入中…");
+      clearTimeout(slowTimer);
+      slowTimer = setTimeout(function () { splashText(true, "連線較慢，仍在努力載入中…<br>等不及可以按下方按鈕重新載入"); }, SLOW_AFTER_MS);
+      if (navigator.onLine === false) splashText(true, "目前沒有網路連線<br>請確認網路後再按重新載入");
+    }
+    function hideSplash() {
+      if (navigator.onLine === false) return showOffline();
+      clearTimeout(slowTimer);
+      splash.classList.add("done");
+    }
+    function showOffline() { if (!splash.classList.contains("done")) splashText(true, "目前沒有網路連線<br>請確認網路後再按重新載入"); }
+    function reloadApp() { showSplash(); frame.src = START_SRC + (START_SRC.indexOf("?") < 0 ? "?" : "&") + "_r=" + Date.now(); }
+    document.getElementById("kcReload").onclick = reloadApp;
+    frame.addEventListener("load", function () { setTimeout(hideSplash, 3000); }); // 備援：整頁載完 3 秒後（正常會更早由下方「拿登入資料」收起）
+    window.addEventListener("offline", showOffline);
+    window.addEventListener("online", function () { if (!splash.classList.contains("done")) reloadApp(); }); // 網路恢復自動再試
+    showSplash();
+
     // 1. 分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
-    frame.src = GAS_URL + (location.search || "");
+    var START_SRC = GAS_URL + (location.search || "");
+    frame.src = START_SRC;
     // 參數只用一次：從網址列移除，避免之後重新整理又跳回同一筆
     if (location.search && window.history && history.replaceState) history.replaceState(null, "", location.pathname);
 
@@ -53,7 +97,7 @@
     function markHidden() { if (!hiddenAt) hiddenAt = Date.now(); }
     function checkReturn() {
       if (document.hidden) return;
-      if (hiddenAt && Date.now() - hiddenAt >= REFRESH_AFTER_MS) frame.src = GAS_URL + "?_r=" + Date.now();
+      if (hiddenAt && Date.now() - hiddenAt >= REFRESH_AFTER_MS) { showSplash(); frame.src = GAS_URL + "?_r=" + Date.now(); } // 【APP化】重新載入時也顯示開機畫面
       hiddenAt = 0;
     }
     document.addEventListener("visibilitychange", function () { if (document.hidden) markHidden(); else checkReturn(); });
@@ -86,6 +130,7 @@
       var d = e.data || {};
       try {
         if (d.kc === "getStore") {
+          hideSplash(); // 【APP化】系統畫面已啟動（它一開始就會來拿登入資料），收起開機畫面
           var data = {};
           for (var k in ALLOWED_KEYS) { var v = localStorage.getItem(STORE_PREFIX + k); if (v !== null) data[k] = v; }
           e.source.postMessage({ kc: "store", data: data }, e.origin);

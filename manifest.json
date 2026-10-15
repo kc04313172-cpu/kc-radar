@@ -1,0 +1,19 @@
+{
+  "name": "KC Nexus 營運協作中樞",
+  "short_name": "KC Nexus",
+  "description": "光泉內部營運協作系統",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf6ef",
+  "theme_color": "#ffffff",
+  "lang": "zh-TW",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
