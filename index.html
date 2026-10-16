@@ -50,6 +50,19 @@
     #kcSplash.slow .m { color: #96603b; }
     #kcSplash button { display: none; margin-top: 4px; border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 11px 28px; min-height: 44px; cursor: pointer; }
     #kcSplash.slow button { display: inline-block; }
+    /* 【加到主畫面提示】不是從主畫面 APP 開啟的手機，底部浮出提示（從主畫面開、電腦版都不出現） */
+    #kcInstall { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 6; max-width: 460px; margin: 0 auto; background: #fffdf9; border: 1px solid #e6dccd; border-radius: 16px; box-shadow: 0 10px 30px rgba(35,39,46,.18); padding: 14px 14px 12px; color: #2a2d30; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; transition: opacity .3s, transform .3s; }
+    #kcInstall.hide { opacity: 0; transform: translateY(16px); pointer-events: none; }
+    #kcInstall .hd { display: flex; align-items: center; gap: 12px; }
+    #kcInstall img { width: 46px; height: 46px; border-radius: 11px; border: 1px solid #eee4d6; flex-shrink: 0; }
+    #kcInstall .tt { font-size: 15px; font-weight: 700; }
+    #kcInstall .st { font-size: 12.5px; color: #7a7d82; margin-top: 2px; line-height: 1.5; }
+    #kcInstall .x { margin-left: auto; align-self: flex-start; border: 0; background: none; color: #a5a8ad; font-size: 22px; line-height: 1; padding: 2px 6px; cursor: pointer; }
+    #kcInstall ol { margin: 10px 0 0; padding: 10px 12px 10px 30px; background: #f6f1e9; border-radius: 10px; font-size: 13.5px; line-height: 1.9; }
+    #kcInstall .ic { display: inline-block; vertical-align: -3px; width: 17px; height: 17px; color: #2f6fd0; }
+    #kcInstall .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    #kcInstall .no { border: 0; background: none; color: #8c8f94; font: inherit; font-size: 13px; padding: 8px 2px; cursor: pointer; }
+    #kcInstall .go { border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 10px 26px; min-height: 42px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -77,6 +90,7 @@
       if (navigator.onLine === false) return showOffline();
       clearTimeout(slowTimer);
       splash.classList.add("done");
+      installReady(); // 【加到主畫面提示】開機畫面收起後才考慮顯示
     }
     function showOffline() { if (!splash.classList.contains("done")) splashText(true, "目前沒有網路連線<br>請確認網路後再按重新載入"); }
     function reloadApp() { showSplash(); frame.src = START_SRC + (START_SRC.indexOf("?") < 0 ? "?" : "&") + "_r=" + Date.now(); }
@@ -85,6 +99,63 @@
     window.addEventListener("offline", showOffline);
     window.addEventListener("online", function () { if (!splash.classList.contains("done")) reloadApp(); }); // 網路恢復自動再試
     showSplash();
+
+    // 0-1. 【加到主畫面提示】自動偵測：從主畫面 APP 開啟、電腦版都不出現；
+    //      Android Chrome 可一鍵安裝（已安裝過的手機 Chrome 不會提供，也就不出現）；iPhone Safari 顯示教學；LINE 內建瀏覽器提示改用手機瀏覽器
+    var INSTALL_DELAY_MS = 3000;                 // 開機畫面收起後幾秒才浮出
+    var SNOOZE_SHORT_DAYS = 7, SNOOZE_LONG_DAYS = 30; // 按 ×／知道了、按「不要再提醒」各隔幾天再出現
+    var SNOOZE_KEY = "kcapp:installSnoozeUntil";
+    var ua = navigator.userAgent || "";
+    var isStandalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isLine = /\bLine\//i.test(ua);
+    var isMobile = isIOS || /Android/i.test(ua);
+    var installMode = "", installEvent = null, installTimerDone = false, installShown = false, installArmed = false;
+    if (!isStandalone && isMobile) {
+      if (isLine) installMode = "line";
+      else if (isIOS && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua)) installMode = "ios";
+    }
+    window.addEventListener("beforeinstallprompt", function (e) { // Android：瀏覽器確認可安裝時才會觸發
+      e.preventDefault(); installEvent = e;
+      if (!isStandalone && isMobile && !isLine) { installMode = "android"; maybeShowInstall(); }
+    });
+    window.addEventListener("appinstalled", function () { closeInstall(SNOOZE_LONG_DAYS); });
+    function snoozed() { try { return Date.now() < Number(localStorage.getItem(SNOOZE_KEY) || 0); } catch (err) { return false; } }
+    function installReady() {
+      if (installArmed) return;
+      installArmed = true;
+      setTimeout(function () { installTimerDone = true; maybeShowInstall(); }, INSTALL_DELAY_MS);
+    }
+    function maybeShowInstall() {
+      if (installShown || !installTimerDone || !installMode || snoozed()) return;
+      installShown = true;
+      var SHARE_ICON = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+      var t = {
+        android: ["把 KC Nexus 安裝到主畫面", "像 APP 一樣全螢幕開啟，登入也比較不會掉", "", "安裝"],
+        ios: ["把 KC Nexus 加到主畫面", "像 APP 一樣全螢幕開啟，登入也比較不會掉", "<ol><li>點下方工具列的分享鈕 " + SHARE_ICON + "</li><li>往下滑，選「加入主畫面」</li><li>右上角按「新增」</li></ol>", "知道了"],
+        line: ["請改用手機瀏覽器開啟", "在 LINE 裡面無法加到主畫面，登入也容易被登出", "<ol><li>點右上角（或右下角）的「⋯」選單</li><li>選「用瀏覽器開啟」（iPhone 為 Safari、Android 為 Chrome）</li></ol>", "知道了"]
+      }[installMode];
+      var box = document.createElement("div");
+      box.id = "kcInstall"; box.className = "hide"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", t[0]);
+      box.innerHTML = '<div class="hd"><img src="icon-192.png" alt=""><div><div class="tt">' + t[0] + '</div><div class="st">' + t[1] + '</div></div><button type="button" class="x" aria-label="關閉">×</button></div>' + t[2] +
+        '<div class="ft"><button type="button" class="no">不要再提醒</button><button type="button" class="go">' + t[3] + '</button></div>';
+      document.body.appendChild(box);
+      setTimeout(function () { box.classList.remove("hide"); }, 30);
+      box.querySelector(".x").onclick = function () { closeInstall(SNOOZE_SHORT_DAYS); };
+      box.querySelector(".no").onclick = function () { closeInstall(SNOOZE_LONG_DAYS); };
+      box.querySelector(".go").onclick = function () {
+        if (installMode === "android" && installEvent) {
+          var ev = installEvent; installEvent = null;
+          ev.prompt();
+          ev.userChoice.then(function (r) { closeInstall(r && r.outcome === "accepted" ? SNOOZE_LONG_DAYS : SNOOZE_SHORT_DAYS); }, function () { closeInstall(SNOOZE_SHORT_DAYS); });
+        } else closeInstall(SNOOZE_SHORT_DAYS);
+      };
+    }
+    function closeInstall(days) {
+      try { localStorage.setItem(SNOOZE_KEY, String(Date.now() + days * 86400000)); } catch (err) {}
+      var box = document.getElementById("kcInstall");
+      if (box) { box.classList.add("hide"); setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 400); }
+    }
 
     // 1. 分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
     var START_SRC = GAS_URL + (location.search || "");
