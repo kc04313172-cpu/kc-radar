@@ -182,7 +182,7 @@
     // 3. 記住登入：系統畫面在 Google 沙盒網域，手機容易清掉它的資料；
     //    改由本頁（固定網域）代為保存工號、保持登入與記住的密碼憑證。
     var STORE_PREFIX = "kcapp:";
-    var ALLOWED_KEYS = { kc_v3_emp: 1, kc_v3_token: 1, kc_v3_pw: 1, kc_logged_user: 1 };
+    var ALLOWED_KEYS = { kc_v3_emp: 1, kc_v3_token: 1, kc_v3_pw: 1, kc_logged_user: 1, kc_v3_seen: 1 }; // kc_v3_seen＝新資料提醒「上次看到的」
     function fromOurApp(src) { // 只回應嵌在本頁 iframe 裡的系統畫面
       // GAS 畫面包了多層（script.google.com → Google 沙盒頁 → 系統畫面），所以往下找到第 3 層
       try {
