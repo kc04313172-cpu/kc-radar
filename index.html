@@ -48,6 +48,8 @@
     @keyframes kcLoad { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
     #kcSplash .m { font-size: 13px; color: #8c8f94; min-height: 20px; line-height: 1.6; }
     #kcSplash.slow .m { color: #96603b; }
+    #kcSplash .kc-hint { font-size: 14px; font-weight: 700; color: #96603b; line-height: 1.6; } /* 【等待提醒】霧金提醒字 */
+    #kcSplash.slow .kc-hint { display: none; } /* 出現〔重新載入〕時改看上面那行說明 */
     #kcSplash button { display: none; margin-top: 4px; border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 11px 28px; min-height: 44px; cursor: pointer; }
     #kcSplash.slow button { display: inline-block; }
     /* 【加到主畫面提示】不是從主畫面 APP 開啟的手機，底部浮出提示（從主畫面開、電腦版都不出現） */
@@ -67,14 +69,14 @@
 </head>
 <body>
   <iframe id="app" allow="geolocation; camera"></iframe>
-  <div id="kcSplash" role="status"><img src="icon-512.png" alt=""><div class="t">KC Nexus 營運協作中樞</div><div class="bar"><i></i></div><div class="m">系統載入中…</div><button type="button" id="kcReload">重新載入</button></div>
+  <div id="kcSplash" role="status"><img src="icon-512.png" alt=""><div class="t">KC Nexus 營運協作中樞</div><div class="bar"><i></i></div><div class="m">系統載入中…</div><div class="kc-hint">若等候較久，可能是網路卡住了<br>可關閉 App 後重新開啟</div><button type="button" id="kcReload">重新載入</button></div>
   <script>
     var GAS_URL = "https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec";
     var REFRESH_AFTER_MS = 10 * 60 * 1000; // 離開超過 10 分鐘，回來時自動載入最新版（短暫切換不會重新整理）
     var frame = document.getElementById("app");
 
-    // 0. 【APP化】開機畫面：系統一有回應（或整頁載完）就淡出；15 秒還沒好、或沒有網路時，顯示「重新載入」
-    var SLOW_AFTER_MS = 15 * 1000;
+    // 0. 【APP化】開機畫面：系統一有回應（或整頁載完）就淡出；8 秒還沒好、或沒有網路時，顯示「重新載入」
+    var SLOW_AFTER_MS = 8 * 1000; // 【等待提醒】原 15 秒，2026-10-21 改 8 秒
     var splash = document.getElementById("kcSplash");
     var splashMsg = splash.querySelector(".m");
     var slowTimer = 0;
