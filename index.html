@@ -49,6 +49,8 @@
     #kcSplash .m { font-size: 13px; color: #8c8f94; min-height: 20px; line-height: 1.6; }
     #kcSplash.slow .m { color: #96603b; }
     #kcSplash .kc-hint { font-size: 14px; font-weight: 700; color: #96603b; line-height: 1.6; } /* 【等待提醒】霧金提醒字 */
+    #kcSplash .kc-hint { opacity: 0; animation: kcHintIn .5s ease 3s forwards; } /* 3 秒後才淡入 */
+    @keyframes kcHintIn { to { opacity: 1; } }
     #kcSplash.slow .kc-hint { display: none; } /* 出現〔重新載入〕時改看上面那行說明 */
     #kcSplash button { display: none; margin-top: 4px; border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 11px 28px; min-height: 44px; cursor: pointer; }
     #kcSplash.slow button { display: inline-block; }
