@@ -67,6 +67,13 @@
     #kcInstall .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
     #kcInstall .no { border: 0; background: none; color: #8c8f94; font: inherit; font-size: 13px; padding: 8px 2px; cursor: pointer; }
     #kcInstall .go { border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 10px 26px; min-height: 42px; cursor: pointer; }
+    /* 【手機推播】iPhone 要在本頁按一下才能跳出「允許通知」，所以在這裡再確認一次（樣式同上面的加到主畫面提示） */
+    #kcPushAsk { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 7; max-width: 460px; margin: 0 auto; background: #fffdf9; border: 1px solid #e6dccd; border-radius: 16px; box-shadow: 0 10px 30px rgba(35,39,46,.18); padding: 16px 14px 12px; color: #2a2d30; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; }
+    #kcPushAsk .tt { font-size: 15px; font-weight: 700; }
+    #kcPushAsk .st { font-size: 12.5px; color: #7a7d82; margin-top: 4px; line-height: 1.6; }
+    #kcPushAsk .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    #kcPushAsk .no { border: 0; background: none; color: #8c8f94; font: inherit; font-size: 13px; padding: 8px 2px; cursor: pointer; }
+    #kcPushAsk .go { border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 10px 26px; min-height: 42px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -161,6 +168,110 @@
       if (box) { box.classList.add("hide"); setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 400); }
     }
 
+    // 0-2. 【手機推播】2026-11-23：系統畫面（GAS）在 Google 沙盒網域，不能登記推播；由本頁代為登記，
+    //      拿到「訂閱碼」交給系統存到後端（18_推播）。下面兩個設定值來自 Firebase 專案設定，空白＝不開放手機通知。
+    var FCM_CONFIG = { apiKey: "AIzaSyDzfJq0MYDd98UtMhyJ3rRDDR0ypgZN8uc", authDomain: "kc-nexus-17e9e.firebaseapp.com", projectId: "kc-nexus-17e9e", storageBucket: "kc-nexus-17e9e.firebasestorage.app", messagingSenderId: "250568692672", appId: "1:250568692672:web:c93a9437d6bd332f55ee25" };
+    var FCM_VAPID_KEY = "BOwsKOzYldz9KuLzlsWvyc3Sszyq07KkTRoKOXJBImPdeCsPJusmh1SRTk03dLLrC3CUA6ucHWRpK3cUWUGlsKo"; // Firebase → 專案設定 → Cloud Messaging → 網路推播憑證（金鑰組）
+    var FB_SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
+    var PUSH_ON_KEY = "kcapp:pushOn", PUSH_TOK_KEY = "kcapp:pushToken", PUSH_SNOOZE_KEY = "kcapp:pushSnoozeUntil";
+    var PUSH_SNOOZE_DAYS = 7; // 自動詢問按「之後再說」，幾天後再問
+    var pushSrc = null, pushOrigin = "", fbReady = null;
+    function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (err) { return ""; } }
+    function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (err) {} }
+    function pushState() {
+      if (!FCM_CONFIG.apiKey || !FCM_VAPID_KEY) return "notset";
+      if (isIOS && !isStandalone) return "ios-install"; // iPhone 只有主畫面 App 能收通知
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || isLine) return "unsupported";
+      return Notification.permission; // default（還沒問）／granted（允許）／denied（不允許）
+    }
+    function pushDevice() {
+      return (isIOS ? "iPhone" : /Android/i.test(ua) ? "Android" : "電腦") + (isStandalone ? "（主畫面 App）" : "（瀏覽器）");
+    }
+    function pushReply(extra) {
+      if (!pushSrc) return;
+      var d = { kc: "push", state: pushState(), device: pushDevice(), on: lsGet(PUSH_ON_KEY) === "1", token: lsGet(PUSH_TOK_KEY), snoozed: Date.now() < Number(lsGet(PUSH_SNOOZE_KEY) || 0) };
+      for (var k in extra) d[k] = extra[k];
+      try { pushSrc.postMessage(d, pushOrigin); } catch (err) {}
+    }
+    function loadJs(src) { return new Promise(function (ok, no) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = function () { no(new Error("推播元件載入失敗")); }; document.head.appendChild(s); }); }
+    function fbMessaging() { // 需要時才載入 Firebase（沒開通知的人不會多載任何東西）
+      if (!fbReady) fbReady = loadJs(FB_SDK + "firebase-app-compat.js")
+        .then(function () { return loadJs(FB_SDK + "firebase-messaging-compat.js"); })
+        .then(function () {
+          if (!firebase.apps.length) firebase.initializeApp(FCM_CONFIG);
+          return navigator.serviceWorker.register("firebase-messaging-sw.js?cfg=" + encodeURIComponent(JSON.stringify(FCM_CONFIG)));
+        })
+        .then(function (reg) {
+          var m = firebase.messaging();
+          m.onMessage(function (p) { // App 開著時也跳通知
+            var n = (p && p.notification) || {};
+            reg.showNotification(n.title || "KC Nexus", { body: n.body || "", icon: "icon-192.png" });
+          });
+          return { m: m, reg: reg };
+        })
+        .catch(function (err) { fbReady = null; throw err; });
+      return fbReady;
+    }
+    function pushToken() { // 取得（或更新）這支手機的訂閱碼；換了就連舊的一起交給系統
+      return fbMessaging().then(function (x) { return x.m.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: x.reg }); })
+        .then(function (t) {
+          var old = lsGet(PUSH_TOK_KEY);
+          if (!t) throw new Error("沒有取得訂閱碼");
+          lsSet(PUSH_TOK_KEY, t);
+          return { token: t, old: old && old !== t ? old : "" };
+        });
+    }
+    function pushStatus() {
+      if (pushState() === "granted" && lsGet(PUSH_ON_KEY) === "1") {
+        pushToken().then(function (r) { pushReply({ token: r.token, old: r.old }); }, function () { pushReply({}); });
+      } else pushReply({});
+    }
+    function pushGo(st) { // 問「允許通知」→ 取得訂閱碼 → 交給系統
+      var ask = st === "granted" ? Promise.resolve("granted") : Notification.requestPermission();
+      Promise.resolve(ask).then(function (p) {
+        if (p !== "granted") return pushReply({ error: "denied" });
+        return pushToken().then(function (r) { lsSet(PUSH_ON_KEY, "1"); lsSet(PUSH_SNOOZE_KEY, ""); pushReply({ token: r.token, old: r.old }); });
+      }).catch(function (err) { pushReply({ error: "fail", detail: String((err && err.message) || err) }); });
+    }
+    function pushEnable() {
+      var st = pushState();
+      if (st !== "default" && st !== "granted") return pushReply({ error: st });
+      if (st === "default" && isIOS) pushConfirm(function () { pushGo(st); }, false); // iPhone：要在本頁按一下才能問「允許通知」
+      else pushGo(st);
+    }
+    function pushPrompt() { // 登入後系統發現這支手機還沒開通知：浮出小卡詢問（「加到主畫面」提示還在時先等它關掉）
+      if (pushState() !== "default" || Date.now() < Number(lsGet(PUSH_SNOOZE_KEY) || 0)) return pushReply({ error: "skip" });
+      var tries = 0;
+      (function wait() {
+        if (document.getElementById("kcInstall") && tries++ < 120) return setTimeout(wait, 1000);
+        pushConfirm(function () { pushGo("default"); }, true);
+      })();
+    }
+    function pushDisable() {
+      lsSet(PUSH_ON_KEY, "");
+      var done = function () { lsSet(PUSH_TOK_KEY, ""); pushReply({}); };
+      if (pushState() === "granted") fbMessaging().then(function (x) { return x.m.deleteToken(); }).then(done, done);
+      else done();
+    }
+    function pushConfirm(go, auto) { // auto＝登入後自動詢問；否則＝iPhone 按了「開啟通知」後的確認
+      var old = document.getElementById("kcPushAsk"); if (old) old.parentNode.removeChild(old);
+      var box = document.createElement("div");
+      box.id = "kcPushAsk"; box.setAttribute("role", "dialog");
+      box.innerHTML = auto
+        ? '<div class="tt">要開啟 KC Nexus 手機通知嗎？</div><div class="st">有新調查上架等消息時，手機會像一般 App 一樣跳出通知。按「開啟通知」後，手機會問是否允許，請選「允許」。</div>' +
+          '<div class="ft"><button type="button" class="no">之後再說</button><button type="button" class="go">開啟通知</button></div>'
+        : '<div class="tt">開啟 KC Nexus 手機通知</div><div class="st">按「繼續」後，iPhone 會跳出「是否允許通知」，請選「允許」。</div>' +
+          '<div class="ft"><button type="button" class="no">取消</button><button type="button" class="go">繼續</button></div>';
+      document.body.appendChild(box);
+      var close = function () { if (box.parentNode) box.parentNode.removeChild(box); };
+      box.querySelector(".go").onclick = function () { close(); go(); };
+      box.querySelector(".no").onclick = function () {
+        close();
+        if (auto) lsSet(PUSH_SNOOZE_KEY, String(Date.now() + PUSH_SNOOZE_DAYS * 86400000));
+        pushReply({ error: auto ? "later" : "cancel" });
+      };
+    }
+
     // 1. 分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
     var START_SRC = GAS_URL + (location.search || "");
     frame.src = START_SRC;
@@ -213,6 +324,9 @@
           localStorage.setItem(STORE_PREFIX + d.key, String(d.value));
         } else if (d.kc === "removeStore" && ALLOWED_KEYS[d.key]) {
           localStorage.removeItem(STORE_PREFIX + d.key);
+        } else if (d.kc === "pushStatus" || d.kc === "pushEnable" || d.kc === "pushDisable" || d.kc === "pushPrompt") { // 【手機推播】
+          pushSrc = e.source; pushOrigin = e.origin;
+          if (d.kc === "pushStatus") pushStatus(); else if (d.kc === "pushEnable") pushEnable(); else if (d.kc === "pushPrompt") pushPrompt(); else pushDisable();
         }
       } catch (err) {}
     });
