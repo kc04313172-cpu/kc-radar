@@ -173,7 +173,8 @@
     var FCM_CONFIG = { apiKey: "AIzaSyDzfJq0MYDd98UtMhyJ3rRDDR0ypgZN8uc", authDomain: "kc-nexus-17e9e.firebaseapp.com", projectId: "kc-nexus-17e9e", storageBucket: "kc-nexus-17e9e.firebasestorage.app", messagingSenderId: "250568692672", appId: "1:250568692672:web:c93a9437d6bd332f55ee25" };
     var FCM_VAPID_KEY = "BOwsKOzYldz9KuLzlsWvyc3Sszyq07KkTRoKOXJBImPdeCsPJusmh1SRTk03dLLrC3CUA6ucHWRpK3cUWUGlsKo"; // Firebase → 專案設定 → Cloud Messaging → 網路推播憑證（金鑰組）
     var FB_SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
-    var PUSH_ON_KEY = "kcapp:pushOn", PUSH_TOK_KEY = "kcapp:pushToken";
+    var PUSH_ON_KEY = "kcapp:pushOn", PUSH_TOK_KEY = "kcapp:pushToken", PUSH_SNOOZE_KEY = "kcapp:pushSnoozeUntil";
+    var PUSH_SNOOZE_DAYS = 7; // 自動詢問按「之後再說」，幾天後再問
     var pushSrc = null, pushOrigin = "", fbReady = null;
     function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (err) { return ""; } }
     function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (err) {} }
@@ -188,7 +189,7 @@
     }
     function pushReply(extra) {
       if (!pushSrc) return;
-      var d = { kc: "push", state: pushState(), device: pushDevice(), on: lsGet(PUSH_ON_KEY) === "1", token: lsGet(PUSH_TOK_KEY) };
+      var d = { kc: "push", state: pushState(), device: pushDevice(), on: lsGet(PUSH_ON_KEY) === "1", token: lsGet(PUSH_TOK_KEY), snoozed: Date.now() < Number(lsGet(PUSH_SNOOZE_KEY) || 0) };
       for (var k in extra) d[k] = extra[k];
       try { pushSrc.postMessage(d, pushOrigin); } catch (err) {}
     }
@@ -225,18 +226,26 @@
         pushToken().then(function (r) { pushReply({ token: r.token, old: r.old }); }, function () { pushReply({}); });
       } else pushReply({});
     }
+    function pushGo(st) { // 問「允許通知」→ 取得訂閱碼 → 交給系統
+      var ask = st === "granted" ? Promise.resolve("granted") : Notification.requestPermission();
+      Promise.resolve(ask).then(function (p) {
+        if (p !== "granted") return pushReply({ error: "denied" });
+        return pushToken().then(function (r) { lsSet(PUSH_ON_KEY, "1"); lsSet(PUSH_SNOOZE_KEY, ""); pushReply({ token: r.token, old: r.old }); });
+      }).catch(function (err) { pushReply({ error: "fail", detail: String((err && err.message) || err) }); });
+    }
     function pushEnable() {
       var st = pushState();
       if (st !== "default" && st !== "granted") return pushReply({ error: st });
-      var go = function () {
-        var ask = st === "granted" ? Promise.resolve("granted") : Notification.requestPermission();
-        Promise.resolve(ask).then(function (p) {
-          if (p !== "granted") return pushReply({ error: "denied" });
-          return pushToken().then(function (r) { lsSet(PUSH_ON_KEY, "1"); pushReply({ token: r.token, old: r.old }); });
-        }).catch(function (err) { pushReply({ error: "fail", detail: String((err && err.message) || err) }); });
-      };
-      if (st === "default" && isIOS) pushConfirm(go); // iPhone：要在本頁按一下才能問「允許通知」
-      else go();
+      if (st === "default" && isIOS) pushConfirm(function () { pushGo(st); }, false); // iPhone：要在本頁按一下才能問「允許通知」
+      else pushGo(st);
+    }
+    function pushPrompt() { // 登入後系統發現這支手機還沒開通知：浮出小卡詢問（「加到主畫面」提示還在時先等它關掉）
+      if (pushState() !== "default" || Date.now() < Number(lsGet(PUSH_SNOOZE_KEY) || 0)) return pushReply({ error: "skip" });
+      var tries = 0;
+      (function wait() {
+        if (document.getElementById("kcInstall") && tries++ < 120) return setTimeout(wait, 1000);
+        pushConfirm(function () { pushGo("default"); }, true);
+      })();
     }
     function pushDisable() {
       lsSet(PUSH_ON_KEY, "");
@@ -244,16 +253,23 @@
       if (pushState() === "granted") fbMessaging().then(function (x) { return x.m.deleteToken(); }).then(done, done);
       else done();
     }
-    function pushConfirm(go) {
+    function pushConfirm(go, auto) { // auto＝登入後自動詢問；否則＝iPhone 按了「開啟通知」後的確認
       var old = document.getElementById("kcPushAsk"); if (old) old.parentNode.removeChild(old);
       var box = document.createElement("div");
       box.id = "kcPushAsk"; box.setAttribute("role", "dialog");
-      box.innerHTML = '<div class="tt">開啟 KC Nexus 手機通知</div><div class="st">按「繼續」後，iPhone 會跳出「是否允許通知」，請選「允許」。</div>' +
-        '<div class="ft"><button type="button" class="no">取消</button><button type="button" class="go">繼續</button></div>';
+      box.innerHTML = auto
+        ? '<div class="tt">要開啟 KC Nexus 手機通知嗎？</div><div class="st">有新調查上架等消息時，手機會像一般 App 一樣跳出通知。按「開啟通知」後，手機會問是否允許，請選「允許」。</div>' +
+          '<div class="ft"><button type="button" class="no">之後再說</button><button type="button" class="go">開啟通知</button></div>'
+        : '<div class="tt">開啟 KC Nexus 手機通知</div><div class="st">按「繼續」後，iPhone 會跳出「是否允許通知」，請選「允許」。</div>' +
+          '<div class="ft"><button type="button" class="no">取消</button><button type="button" class="go">繼續</button></div>';
       document.body.appendChild(box);
       var close = function () { if (box.parentNode) box.parentNode.removeChild(box); };
       box.querySelector(".go").onclick = function () { close(); go(); };
-      box.querySelector(".no").onclick = function () { close(); pushReply({ error: "cancel" }); };
+      box.querySelector(".no").onclick = function () {
+        close();
+        if (auto) lsSet(PUSH_SNOOZE_KEY, String(Date.now() + PUSH_SNOOZE_DAYS * 86400000));
+        pushReply({ error: auto ? "later" : "cancel" });
+      };
     }
 
     // 1. 分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
@@ -308,9 +324,9 @@
           localStorage.setItem(STORE_PREFIX + d.key, String(d.value));
         } else if (d.kc === "removeStore" && ALLOWED_KEYS[d.key]) {
           localStorage.removeItem(STORE_PREFIX + d.key);
-        } else if (d.kc === "pushStatus" || d.kc === "pushEnable" || d.kc === "pushDisable") { // 【手機推播】
+        } else if (d.kc === "pushStatus" || d.kc === "pushEnable" || d.kc === "pushDisable" || d.kc === "pushPrompt") { // 【手機推播】
           pushSrc = e.source; pushOrigin = e.origin;
-          if (d.kc === "pushStatus") pushStatus(); else if (d.kc === "pushEnable") pushEnable(); else pushDisable();
+          if (d.kc === "pushStatus") pushStatus(); else if (d.kc === "pushEnable") pushEnable(); else if (d.kc === "pushPrompt") pushPrompt(); else pushDisable();
         }
       } catch (err) {}
     });
