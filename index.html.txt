@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KC Nexus 營運協作中樞</title>
+  <!-- LINE／FB 分享預覽卡片：標題與圖片（圖片檔名含日期，換圖時改新檔名，LINE 才會抓新圖） -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="KC Nexus">
+  <meta property="og:title" content="KC Nexus 營運協作中樞">
+  <meta property="og:description" content="光泉內部營運協作系統">
+  <meta property="og:image" content="https://kc04313172-cpu.github.io/kc-radar/kcnexus-share-20261010.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="KC Nexus">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <!-- 【APP化】Android 安裝成 APP 用（名稱、圖示、開機底色）；iPhone 仍用上面的 apple-touch-icon -->
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #ffffff;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    /* 【APP化】手機瀏覽器網址列伸縮時，高度跟著實際可見範圍（舊手機自動沿用上面的 100%） */
+    @supports (height: 100dvh) { html, body { height: 100dvh; } }
+    /* 【APP化】開機畫面：系統載入好之前蓋在最上層；太久或沒網路時顯示「重新載入」 */
+    #kcSplash { position: fixed; inset: 0; z-index: 5; background: #faf6ef; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; transition: opacity .35s; }
+    #kcSplash.done { opacity: 0; pointer-events: none; }
+    #kcSplash img { width: 140px; height: 140px; }
+    #kcSplash .t { font-size: 17px; font-weight: 700; color: #2a2d30; letter-spacing: .5px; }
+    #kcSplash .bar { width: 120px; height: 3px; border-radius: 3px; background: #e8dfcf; overflow: hidden; margin-top: 6px; }
+    #kcSplash .bar i { display: block; width: 40%; height: 100%; border-radius: 3px; background: #c4aa7c; animation: kcLoad 1.2s ease-in-out infinite; }
+    @keyframes kcLoad { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    #kcSplash .m { font-size: 13px; color: #8c8f94; min-height: 20px; line-height: 1.6; }
+    #kcSplash.slow .m { color: #96603b; }
+    #kcSplash .kc-hint { font-size: 14px; font-weight: 700; color: #96603b; line-height: 1.6; } /* 【等待提醒】霧金提醒字 */
+    #kcSplash .kc-hint { opacity: 0; animation: kcHintIn .5s ease 3s forwards; } /* 3 秒後才淡入 */
+    @keyframes kcHintIn { to { opacity: 1; } }
+    #kcSplash.slow .kc-hint { display: none; } /* 出現〔重新載入〕時改看上面那行說明 */
+    #kcSplash button { display: none; margin-top: 4px; border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 11px 28px; min-height: 44px; cursor: pointer; }
+    #kcSplash.slow button { display: inline-block; }
+    /* 【加到主畫面提示】不是從主畫面 APP 開啟的手機，底部浮出提示（從主畫面開、電腦版都不出現） */
+    #kcInstall { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 6; max-width: 460px; margin: 0 auto; background: #fffdf9; border: 1px solid #e6dccd; border-radius: 16px; box-shadow: 0 10px 30px rgba(35,39,46,.18); padding: 14px 14px 12px; color: #2a2d30; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; transition: opacity .3s, transform .3s; }
+    #kcInstall.hide { opacity: 0; transform: translateY(16px); pointer-events: none; }
+    #kcInstall .hd { display: flex; align-items: center; gap: 12px; }
+    #kcInstall img { width: 46px; height: 46px; border-radius: 11px; border: 1px solid #eee4d6; flex-shrink: 0; }
+    #kcInstall .tt { font-size: 15px; font-weight: 700; }
+    #kcInstall .st { font-size: 12.5px; color: #7a7d82; margin-top: 2px; line-height: 1.5; }
+    #kcInstall .x { margin-left: auto; align-self: flex-start; border: 0; background: none; color: #a5a8ad; font-size: 22px; line-height: 1; padding: 2px 6px; cursor: pointer; }
+    #kcInstall ol { margin: 10px 0 0; padding: 10px 12px 10px 30px; background: #f6f1e9; border-radius: 10px; font-size: 13.5px; line-height: 1.9; }
+    #kcInstall .ic { display: inline-block; vertical-align: -3px; width: 17px; height: 17px; color: #2f6fd0; }
+    #kcInstall .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    #kcInstall .no { border: 0; background: none; color: #8c8f94; font: inherit; font-size: 13px; padding: 8px 2px; cursor: pointer; }
+    #kcInstall .go { border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 10px 26px; min-height: 42px; cursor: pointer; }
+    /* 【手機推播】iPhone 要在本頁按一下才能跳出「允許通知」，所以在這裡再確認一次（樣式同上面的加到主畫面提示） */
+    #kcPushAsk { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 7; max-width: 460px; margin: 0 auto; background: #fffdf9; border: 1px solid #e6dccd; border-radius: 16px; box-shadow: 0 10px 30px rgba(35,39,46,.18); padding: 16px 14px 12px; color: #2a2d30; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; }
+    #kcPushAsk .tt { font-size: 15px; font-weight: 700; }
+    #kcPushAsk .st { font-size: 12.5px; color: #7a7d82; margin-top: 4px; line-height: 1.6; }
+    #kcPushAsk .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    #kcPushAsk .no { border: 0; background: none; color: #8c8f94; font: inherit; font-size: 13px; padding: 8px 2px; cursor: pointer; }
+    #kcPushAsk .go { border: 0; border-radius: 10px; background: #cf9a68; color: #fff; font: inherit; font-size: 15px; font-weight: 700; padding: 10px 26px; min-height: 42px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <iframe id="app" allow="geolocation; camera"></iframe>
+  <div id="kcSplash" role="status"><img src="icon-512.png" alt=""><div class="t">KC Nexus 營運協作中樞</div><div class="bar"><i></i></div><div class="m">系統載入中…</div><div class="kc-hint">若等候較久，可能是網路卡住了<br>可關閉 App 後重新開啟</div><button type="button" id="kcReload">重新載入</button></div>
+  <script>
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbyG6Rw46M_jEQf_mPg-v11I_u6YlR3Z64fiV0D0sF8jRCueWqhHULeahEaq3pnjKqmy/exec";
+    var REFRESH_AFTER_MS = 10 * 60 * 1000; // 離開超過 10 分鐘，回來時自動載入最新版（短暫切換不會重新整理）
+    var frame = document.getElementById("app");
+
+    // 0. 【APP化】開機畫面：系統一有回應（或整頁載完）就淡出；8 秒還沒好、或沒有網路時，顯示「重新載入」
+    var SLOW_AFTER_MS = 8 * 1000; // 【等待提醒】原 15 秒，2026-10-21 改 8 秒
+    var splash = document.getElementById("kcSplash");
+    var splashMsg = splash.querySelector(".m");
+    var slowTimer = 0;
+    function splashText(slow, text) { splash.classList.toggle("slow", slow); splashMsg.innerHTML = text; }
+    function showSplash() {
+      splash.classList.remove("done");
+      splashText(false, "系統載入中…");
+      clearTimeout(slowTimer);
+      slowTimer = setTimeout(function () { splashText(true, "連線較慢，仍在努力載入中…<br>等不及可以按下方按鈕重新載入"); }, SLOW_AFTER_MS);
+      if (navigator.onLine === false) splashText(true, "目前沒有網路連線<br>請確認網路後再按重新載入");
+    }
+    function hideSplash() {
+      if (navigator.onLine === false) return showOffline();
+      clearTimeout(slowTimer);
+      splash.classList.add("done");
+      installReady(); // 【加到主畫面提示】開機畫面收起後才考慮顯示
+    }
+    function showOffline() { if (!splash.classList.contains("done")) splashText(true, "目前沒有網路連線<br>請確認網路後再按重新載入"); }
+    function reloadApp() { showSplash(); frame.src = START_SRC + (START_SRC.indexOf("?") < 0 ? "?" : "&") + "_r=" + Date.now(); }
+    document.getElementById("kcReload").onclick = reloadApp;
+    frame.addEventListener("load", function () { setTimeout(hideSplash, 3000); }); // 備援：整頁載完 3 秒後（正常會更早由下方「拿登入資料」收起）
+    window.addEventListener("offline", showOffline);
+    window.addEventListener("online", function () { if (!splash.classList.contains("done")) reloadApp(); }); // 網路恢復自動再試
+    showSplash();
+
+    // 0-1. 【加到主畫面提示】自動偵測：從主畫面 APP 開啟、電腦版都不出現；
+    //      Android Chrome 可一鍵安裝（已安裝過的手機 Chrome 不會提供，也就不出現）；iPhone Safari 顯示教學；LINE 內建瀏覽器提示改用手機瀏覽器
+    var INSTALL_DELAY_MS = 3000;                 // 開機畫面收起後幾秒才浮出
+    var SNOOZE_SHORT_DAYS = 7, SNOOZE_LONG_DAYS = 30; // 按 ×／知道了、按「不要再提醒」各隔幾天再出現
+    var SNOOZE_KEY = "kcapp:installSnoozeUntil";
+    var ua = navigator.userAgent || "";
+    var isStandalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isLine = /\bLine\//i.test(ua);
+    var isMobile = isIOS || /Android/i.test(ua);
+    var installMode = "", installEvent = null, installTimerDone = false, installShown = false, installArmed = false;
+    if (!isStandalone && isMobile) {
+      if (isLine) installMode = "line";
+      else if (isIOS && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua)) installMode = "ios";
+    }
+    window.addEventListener("beforeinstallprompt", function (e) { // Android：瀏覽器確認可安裝時才會觸發
+      e.preventDefault(); installEvent = e;
+      if (!isStandalone && isMobile && !isLine) { installMode = "android"; maybeShowInstall(); }
+    });
+    window.addEventListener("appinstalled", function () { closeInstall(SNOOZE_LONG_DAYS); });
+    function snoozed() { try { return Date.now() < Number(localStorage.getItem(SNOOZE_KEY) || 0); } catch (err) { return false; } }
+    function installReady() {
+      if (installArmed) return;
+      installArmed = true;
+      setTimeout(function () { installTimerDone = true; maybeShowInstall(); }, INSTALL_DELAY_MS);
+    }
+    function maybeShowInstall() {
+      if (installShown || !installTimerDone || !installMode || snoozed()) return;
+      installShown = true;
+      var SHARE_ICON = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+      var t = {
+        android: ["把 KC Nexus 安裝到主畫面", "像 APP 一樣全螢幕開啟，登入也比較不會掉", "", "安裝"],
+        ios: ["把 KC Nexus 加到主畫面", "像 APP 一樣全螢幕開啟，登入也比較不會掉", "<ol><li>點下方工具列的分享鈕 " + SHARE_ICON + "</li><li>往下滑，選「加入主畫面」</li><li>右上角按「新增」</li></ol>", "知道了"],
+        line: ["請改用手機瀏覽器開啟", "在 LINE 裡面無法加到主畫面，登入也容易被登出", "<ol><li>點右上角（或右下角）的「⋯」選單</li><li>選「用瀏覽器開啟」（iPhone 為 Safari、Android 為 Chrome）</li></ol>", "知道了"]
+      }[installMode];
+      var box = document.createElement("div");
+      box.id = "kcInstall"; box.className = "hide"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", t[0]);
+      box.innerHTML = '<div class="hd"><img src="icon-192.png" alt=""><div><div class="tt">' + t[0] + '</div><div class="st">' + t[1] + '</div></div><button type="button" class="x" aria-label="關閉">×</button></div>' + t[2] +
+        '<div class="ft"><button type="button" class="no">不要再提醒</button><button type="button" class="go">' + t[3] + '</button></div>';
+      document.body.appendChild(box);
+      setTimeout(function () { box.classList.remove("hide"); }, 30);
+      box.querySelector(".x").onclick = function () { closeInstall(SNOOZE_SHORT_DAYS); };
+      box.querySelector(".no").onclick = function () { closeInstall(SNOOZE_LONG_DAYS); };
+      box.querySelector(".go").onclick = function () {
+        if (installMode === "android" && installEvent) {
+          var ev = installEvent; installEvent = null;
+          ev.prompt();
+          ev.userChoice.then(function (r) { closeInstall(r && r.outcome === "accepted" ? SNOOZE_LONG_DAYS : SNOOZE_SHORT_DAYS); }, function () { closeInstall(SNOOZE_SHORT_DAYS); });
+        } else closeInstall(SNOOZE_SHORT_DAYS);
+      };
+    }
+    function closeInstall(days) {
+      try { localStorage.setItem(SNOOZE_KEY, String(Date.now() + days * 86400000)); } catch (err) {}
+      var box = document.getElementById("kcInstall");
+      if (box) { box.classList.add("hide"); setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 400); }
+    }
+
+    // 0-2. 【手機推播】2026-11-23：系統畫面（GAS）在 Google 沙盒網域，不能登記推播；由本頁代為登記，
+    //      拿到「訂閱碼」交給系統存到後端（18_推播）。下面兩個設定值來自 Firebase 專案設定，空白＝不開放手機通知。
+    var FCM_CONFIG = { apiKey: "AIzaSyDzfJq0MYDd98UtMhyJ3rRDDR0ypgZN8uc", authDomain: "kc-nexus-17e9e.firebaseapp.com", projectId: "kc-nexus-17e9e", storageBucket: "kc-nexus-17e9e.firebasestorage.app", messagingSenderId: "250568692672", appId: "1:250568692672:web:c93a9437d6bd332f55ee25" };
+    var FCM_VAPID_KEY = "BOwsKOzYldz9KuLzlsWvyc3Sszyq07KkTRoKOXJBImPdeCsPJusmh1SRTk03dLLrC3CUA6ucHWRpK3cUWUGlsKo"; // Firebase → 專案設定 → Cloud Messaging → 網路推播憑證（金鑰組）
+    var FB_SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
+    var PUSH_ON_KEY = "kcapp:pushOn", PUSH_TOK_KEY = "kcapp:pushToken";
+    var pushSrc = null, pushOrigin = "", fbReady = null;
+    function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (err) { return ""; } }
+    function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (err) {} }
+    function pushState() {
+      if (!FCM_CONFIG.apiKey || !FCM_VAPID_KEY) return "notset";
+      if (isIOS && !isStandalone) return "ios-install"; // iPhone 只有主畫面 App 能收通知
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || isLine) return "unsupported";
+      return Notification.permission; // default（還沒問）／granted（允許）／denied（不允許）
+    }
+    function pushDevice() {
+      return (isIOS ? "iPhone" : /Android/i.test(ua) ? "Android" : "電腦") + (isStandalone ? "（主畫面 App）" : "（瀏覽器）");
+    }
+    function pushReply(extra) {
+      if (!pushSrc) return;
+      var d = { kc: "push", state: pushState(), device: pushDevice(), on: lsGet(PUSH_ON_KEY) === "1", token: lsGet(PUSH_TOK_KEY) };
+      for (var k in extra) d[k] = extra[k];
+      try { pushSrc.postMessage(d, pushOrigin); } catch (err) {}
+    }
+    function loadJs(src) { return new Promise(function (ok, no) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = function () { no(new Error("推播元件載入失敗")); }; document.head.appendChild(s); }); }
+    function fbMessaging() { // 需要時才載入 Firebase（沒開通知的人不會多載任何東西）
+      if (!fbReady) fbReady = loadJs(FB_SDK + "firebase-app-compat.js")
+        .then(function () { return loadJs(FB_SDK + "firebase-messaging-compat.js"); })
+        .then(function () {
+          if (!firebase.apps.length) firebase.initializeApp(FCM_CONFIG);
+          return navigator.serviceWorker.register("firebase-messaging-sw.js?cfg=" + encodeURIComponent(JSON.stringify(FCM_CONFIG)));
+        })
+        .then(function (reg) {
+          var m = firebase.messaging();
+          m.onMessage(function (p) { // App 開著時也跳通知
+            var n = (p && p.notification) || {};
+            reg.showNotification(n.title || "KC Nexus", { body: n.body || "", icon: "icon-192.png" });
+          });
+          return { m: m, reg: reg };
+        })
+        .catch(function (err) { fbReady = null; throw err; });
+      return fbReady;
+    }
+    function pushToken() { // 取得（或更新）這支手機的訂閱碼；換了就連舊的一起交給系統
+      return fbMessaging().then(function (x) { return x.m.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: x.reg }); })
+        .then(function (t) {
+          var old = lsGet(PUSH_TOK_KEY);
+          if (!t) throw new Error("沒有取得訂閱碼");
+          lsSet(PUSH_TOK_KEY, t);
+          return { token: t, old: old && old !== t ? old : "" };
+        });
+    }
+    function pushStatus() {
+      if (pushState() === "granted" && lsGet(PUSH_ON_KEY) === "1") {
+        pushToken().then(function (r) { pushReply({ token: r.token, old: r.old }); }, function () { pushReply({}); });
+      } else pushReply({});
+    }
+    function pushEnable() {
+      var st = pushState();
+      if (st !== "default" && st !== "granted") return pushReply({ error: st });
+      var go = function () {
+        var ask = st === "granted" ? Promise.resolve("granted") : Notification.requestPermission();
+        Promise.resolve(ask).then(function (p) {
+          if (p !== "granted") return pushReply({ error: "denied" });
+          return pushToken().then(function (r) { lsSet(PUSH_ON_KEY, "1"); pushReply({ token: r.token, old: r.old }); });
+        }).catch(function (err) { pushReply({ error: "fail", detail: String((err && err.message) || err) }); });
+      };
+      if (st === "default" && isIOS) pushConfirm(go); // iPhone：要在本頁按一下才能問「允許通知」
+      else go();
+    }
+    function pushDisable() {
+      lsSet(PUSH_ON_KEY, "");
+      var done = function () { lsSet(PUSH_TOK_KEY, ""); pushReply({}); };
+      if (pushState() === "granted") fbMessaging().then(function (x) { return x.m.deleteToken(); }).then(done, done);
+      else done();
+    }
+    function pushConfirm(go) {
+      var old = document.getElementById("kcPushAsk"); if (old) old.parentNode.removeChild(old);
+      var box = document.createElement("div");
+      box.id = "kcPushAsk"; box.setAttribute("role", "dialog");
+      box.innerHTML = '<div class="tt">開啟 KC Nexus 手機通知</div><div class="st">按「繼續」後，iPhone 會跳出「是否允許通知」，請選「允許」。</div>' +
+        '<div class="ft"><button type="button" class="no">取消</button><button type="button" class="go">繼續</button></div>';
+      document.body.appendChild(box);
+      var close = function () { if (box.parentNode) box.parentNode.removeChild(box); };
+      box.querySelector(".go").onclick = function () { close(); go(); };
+      box.querySelector(".no").onclick = function () { close(); pushReply({ error: "cancel" }); };
+    }
+
+    // 1. 分享連結的參數（?task=...&rec=...）轉交給系統，點開即可直接跳到該筆紀錄
+    var START_SRC = GAS_URL + (location.search || "");
+    frame.src = START_SRC;
+    // 參數只用一次：從網址列移除，避免之後重新整理又跳回同一筆
+    if (location.search && window.history && history.replaceState) history.replaceState(null, "", location.pathname);
+
+    // 2. 放到手機桌面當 App 時，回到前景若已離開太久，自動載入最新版（登入狀態會保留）
+    var hiddenAt = 0;
+    function markHidden() { if (!hiddenAt) hiddenAt = Date.now(); }
+    function checkReturn() {
+      if (document.hidden) return;
+      if (hiddenAt && Date.now() - hiddenAt >= REFRESH_AFTER_MS) { showSplash(); frame.src = GAS_URL + "?_r=" + Date.now(); } // 【APP化】重新載入時也顯示開機畫面
+      hiddenAt = 0;
+    }
+    document.addEventListener("visibilitychange", function () { if (document.hidden) markHidden(); else checkReturn(); });
+    window.addEventListener("pagehide", markHidden);
+    window.addEventListener("pageshow", function (e) { if (e.persisted) checkReturn(); });
+
+    // 3. 記住登入：系統畫面在 Google 沙盒網域，手機容易清掉它的資料；
+    //    改由本頁（固定網域）代為保存工號、保持登入與記住的密碼憑證。
+    var STORE_PREFIX = "kcapp:";
+    var ALLOWED_KEYS = { kc_v3_emp: 1, kc_v3_token: 1, kc_v3_pw: 1, kc_logged_user: 1, kc_v3_seen: 1 }; // kc_v3_seen＝新資料提醒「上次看到的」
+    function fromOurApp(src) { // 只回應嵌在本頁 iframe 裡的系統畫面
+      // GAS 畫面包了多層（script.google.com → Google 沙盒頁 → 系統畫面），所以往下找到第 3 層
+      try {
+        var w = frame.contentWindow;
+        if (!w || !src) return false;
+        var level = [w];
+        for (var depth = 0; depth <= 3 && level.length; depth++) {
+          var next = [];
+          for (var i = 0; i < level.length; i++) {
+            if (level[i] === src) return true;
+            for (var j = 0; j < level[i].frames.length; j++) next.push(level[i].frames[j]);
+          }
+          level = next;
+        }
+      } catch (err) {}
+      return false;
+    }
+    window.addEventListener("message", function (e) {
+      if (!/^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(e.origin) || !fromOurApp(e.source)) return;
+      var d = e.data || {};
+      try {
+        if (d.kc === "getStore") {
+          hideSplash(); // 【APP化】系統畫面已啟動（它一開始就會來拿登入資料），收起開機畫面
+          var data = {};
+          for (var k in ALLOWED_KEYS) { var v = localStorage.getItem(STORE_PREFIX + k); if (v !== null) data[k] = v; }
+          e.source.postMessage({ kc: "store", data: data }, e.origin);
+        } else if (d.kc === "setStore" && ALLOWED_KEYS[d.key]) {
+          localStorage.setItem(STORE_PREFIX + d.key, String(d.value));
+        } else if (d.kc === "removeStore" && ALLOWED_KEYS[d.key]) {
+          localStorage.removeItem(STORE_PREFIX + d.key);
+        } else if (d.kc === "pushStatus" || d.kc === "pushEnable" || d.kc === "pushDisable") { // 【手機推播】
+          pushSrc = e.source; pushOrigin = e.origin;
+          if (d.kc === "pushStatus") pushStatus(); else if (d.kc === "pushEnable") pushEnable(); else pushDisable();
+        }
+      } catch (err) {}
+    });
+  </script>
+</body>
+</html>
